@@ -1,18 +1,18 @@
 name: AWS Athena Query
 description: A GitHub Action to run an Athena query
 inputs:
-  query-string:
-    description: The SQL query statements to be executed.
-    required: true
   query-context:
     description: The context within which the query executes.
     required: true
     default: Catalog=AwsDataCatalog
+  query-string:
+    description: The SQL query statements to be executed.
+    required: true
   output-location:
     description: The location in Amazon S3 where your query results are stored, such as `s3://mybucket/myprefix`.
     required: true
   output-filename:
-    description: The name of the file where the query results are stored in the output location.
+    description: The desired name of the file where the query results are stored in the output location.
     required: true
   output-min-size:
     description: The minimum size of the output file in human-readable format, such as `1M` or `1G`.
@@ -22,9 +22,9 @@ outputs:
   query-id:
     description: The unique identifier for the query execution.
     value: ${{ steps.query.outputs.id }}
-  result-location:
-    description: The location in Amazon S3 where your query result are stored.
-    value: ${{ steps.rename.outputs.location }}
+  output-location:
+    description: The location in Amazon S3 where your query results are stored.
+    value: ${{ steps.move.outputs.location }}
 runs:
   using: composite
   steps:
@@ -37,8 +37,8 @@ runs:
       ATHENA_OUTPUT_LOCATION: ${{ inputs.output-location }}
     run: |
       aws athena start-query-execution \
-        --query-string "${ATHENA_QUERY_STRING}" \
         --query-execution-context "${ATHENA_QUERY_CONTEXT}" \
+        --query-string "${ATHENA_QUERY_STRING}" \
         --result-configuration "OutputLocation=${ATHENA_OUTPUT_LOCATION}" \
         --query QueryExecutionId \
         --output text | echo "id=$(cat)" >> $GITHUB_OUTPUT
@@ -103,8 +103,8 @@ runs:
         $(numfmt --to=iec ${ATHENA_FILESIZE_BYTES}) "<" $(numfmt --to=iec ${ATHENA_MINIMUM_BYTES})
       exit 1
 
-  - name: Rename Query Result File
-    id: rename
+  - name: Move Query Result File
+    id: move
     if: ${{ success() }}
     shell: bash
     env:

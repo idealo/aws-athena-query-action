@@ -1,0 +1,126 @@
+name: AWS Athena Query
+description: A GitHub Action to run an Athena query
+inputs:
+  query-context:
+    description: The context within which the query executes.
+    required: true
+    default: Catalog=AwsDataCatalog
+  query-string:
+    description: The SQL query statements to be executed.
+    required: true
+  output-location:
+    description: The location in Amazon S3 where your query results are stored, such as `s3://mybucket/myprefix`.
+    required: true
+  output-filename:
+    description: The desired name of the file where the query results are stored in the output location.
+    required: true
+  output-min-size:
+    description: The minimum size of the output file in human-readable format, such as `1M` or `1G`.
+    required: true
+    default: 100K
+outputs:
+  query-id:
+    description: The unique identifier for the query execution.
+    value: ${{ steps.query.outputs.id }}
+  output-location:
+    description: The location in Amazon S3 where your query results are stored.
+    value: ${{ steps.move.outputs.location }}
+runs:
+  using: composite
+  steps:
+  - name: Start Query Execution
+    id: query
+    shell: bash
+    env:
+      ATHENA_QUERY_STRING: ${{ inputs.query-string }}
+      ATHENA_QUERY_CONTEXT: ${{ inputs.query-context }}
+      ATHENA_OUTPUT_LOCATION: ${{ inputs.output-location }}
+    run: |
+      aws athena start-query-execution \
+        --query-execution-context "${ATHENA_QUERY_CONTEXT}" \
+        --query-string "${ATHENA_QUERY_STRING}" \
+        --result-configuration "OutputLocation=${ATHENA_OUTPUT_LOCATION}" \
+        --query QueryExecutionId \
+        --output text | echo "id=$(cat)" >> $GITHUB_OUTPUT
+
+  - name: Wait for Query Result
+    shell: bash
+    env:
+      ATHENA_QUERY_ID: ${{ steps.query.outputs.id }}
+    run: |
+      while true; do
+        status=$(aws athena get-query-execution \
+          --query-execution-id ${ATHENA_QUERY_ID} \
+          --query QueryExecution.Status.State)
+
+        case $status in
+          QUEUED|RUNNING) sleep 10 ;;
+          SUCCEEDED) break ;;
+          *) echo "Failed with status: ${status}" && exit 1 ;;
+        esac
+      done
+
+  - name: Get Query Result Location
+    id: result
+    shell: bash
+    env:
+      ATHENA_QUERY_ID: ${{ steps.query.outputs.id }}
+    run: |
+      aws athena get-query-execution \
+        --query-execution-id ${ATHENA_QUERY_ID} \
+        --query QueryExecution.ResultConfiguration.OutputLocation \
+        --output text | echo "location=$(cat)" >> $GITHUB_OUTPUT
+
+  - name: Get Query Result Size
+    id: filesize
+    shell: bash
+    env:
+      ATHENA_RESULT_LOCATION: ${{ steps.result.outputs.location }}
+    run: |
+      location=${ATHENA_RESULT_LOCATION#s3://}
+      aws s3api head-object \
+        --bucket "${location%%/*}" \
+        --key "${location#*/}" \
+        --query ContentLength \
+        --output text | echo "bytes=$(cat)" >> $GITHUB_OUTPUT
+
+  - name: Convert Size to Bytes
+    id: minimum
+    shell: bash
+    env:
+      ATHENA_MINIMUM_SIZE: ${{ inputs.output-min-size }}
+    run: |
+      echo bytes=$(numfmt --from=iec "${ATHENA_MINIMUM_SIZE}") >> $GITHUB_OUTPUT
+
+  - name: Check Query Result Size
+    if: ${{ steps.filesize.outputs.bytes < steps.minimum.outputs.bytes }}
+    shell: bash
+    env:
+      ATHENA_FILESIZE_BYTES: ${{ steps.filesize.outputs.bytes }}
+      ATHENA_MINIMUM_BYTES: ${{ steps.minimum.outputs.bytes }}
+    run: |
+      echo "Result file size is smaller than expected: " \
+        $(numfmt --to=iec ${ATHENA_FILESIZE_BYTES}) "<" $(numfmt --to=iec ${ATHENA_MINIMUM_BYTES})
+      exit 1
+
+  - name: Move Query Result File
+    id: move
+    if: ${{ success() }}
+    shell: bash
+    env:
+      ATHENA_RESULT_LOCATION: ${{ steps.result.outputs.location }}
+      ATHENA_RESULT_FILENAME: ${{ inputs.output-filename }}
+    run: |
+      aws s3 mv ${ATHENA_RESULT_LOCATION} "$(dirname ${ATHENA_RESULT_LOCATION})/${ATHENA_RESULT_FILENAME}"
+      echo "location=$(dirname ${ATHENA_RESULT_LOCATION})/${ATHENA_RESULT_FILENAME}" >> $GITHUB_OUTPUT
+      aws s3 rm ${ATHENA_RESULT_LOCATION}.metadata
+
+  - name: Delete Query Result File
+    if: ${{ failure() }}
+    shell: bash
+    env:
+      ATHENA_RESULT_LOCATION: ${{ steps.result.outputs.location }}
+      ATHENA_RESULT_FILENAME: ${{ inputs.output-filename }}
+    run: |
+      aws s3 rm ${ATHENA_RESULT_LOCATION}
+      aws s3 rm ${ATHENA_RESULT_LOCATION}.metadata

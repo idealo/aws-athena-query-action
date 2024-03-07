@@ -4,7 +4,6 @@ inputs:
   query-context:
     description: The context within which the query executes.
     required: true
-    default: Catalog=AwsDataCatalog
   query-string:
     description: The SQL query statements to be executed.
     required: true
@@ -17,7 +16,6 @@ inputs:
   output-min-size:
     description: The minimum size of the output file in human-readable format, such as `1M` or `1G`.
     required: true
-    default: 100K
 outputs:
   query-id:
     description: The unique identifier for the query execution.

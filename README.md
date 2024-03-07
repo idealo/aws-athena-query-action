@@ -30,13 +30,13 @@ steps:
 
 See [action.yml](action.yml) for more detail.
 
-| Name              | Description                                                      | Required | Default                |
-| ----------------- | ---------------------------------------------------------------- | -------- | ---------------------- |
-| `query-context`   | The context within which the query executes.                     | Yes      | Catalog=AwsDataCatalog |
-| `query-string`    | The SQL query statements to be executed.                         | Yes      |                        |
-| `output-location` | The location in Amazon S3 where your query results are stored.   | Yes      |                        |
-| `output-filename` | The desired name of the file where the query results are stored. | Yes      |                        |
-| `output-min-size` | The minimum size of the output file in human-readable format.    | Yes      | 100K                   |
+| Name              | Description                                                      | Required |
+| ----------------- | ---------------------------------------------------------------- | -------- |
+| `query-context`   | The context within which the query executes.                     | Yes      |
+| `query-string`    | The SQL query statements to be executed.                         | Yes      |
+| `output-location` | The location in Amazon S3 where your query results are stored.   | Yes      |
+| `output-filename` | The desired name of the file where the query results are stored. | Yes      |
+| `output-min-size` | The minimum size of the output file in human-readable format.    | Yes      |
 
 ## Outputs
 

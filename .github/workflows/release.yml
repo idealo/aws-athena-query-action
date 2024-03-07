@@ -1,0 +1,28 @@
+name: Release
+on:
+  push:
+    branches:
+    - main
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Semantic Release
+      id: semantic
+      uses: cycjimmy/semantic-release-action@v4
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Update Major Tag
+      if: ${{ steps.semantic.outputs.new_release_published == 'true' }}
+      run: git push -f origin HEAD:refs/tags/v${MAJOR_VERSION}
+      env:
+        MAJOR_VERSION: ${{ steps.semantic.outputs.new_release_major_version }}
+

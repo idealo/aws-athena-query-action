@@ -1,11 +1,14 @@
 name: AWS Athena Query
 description: A GitHub Action to run an Athena query
 inputs:
-  query-context:
-    description: The context within which the query executes.
-    required: true
+  query-id:
+    description: The unique identifier of the saved query. Use `aws athena list-named-queries` to get query IDs.
+    default: ""
   query-string:
     description: The SQL query statements to be executed.
+    default: ""
+  query-context:
+    description: The context within which the query executes.
     required: true
   output-location:
     description: The location in Amazon S3 where your query results are stored, such as `s3://mybucket/myprefix`.
@@ -18,19 +21,36 @@ inputs:
     required: true
 outputs:
   query-id:
-    description: The unique identifier for the query execution.
-    value: ${{ steps.query.outputs.id }}
+    description: The unique identifier of the query execution.
+    value: ${{ steps.execution.outputs.id }}
   output-location:
     description: The location in Amazon S3 where your query results are stored.
     value: ${{ steps.move.outputs.location }}
 runs:
   using: composite
   steps:
-  - name: Start Query Execution
+  - name: Get Query String
     id: query
     shell: bash
     env:
+      ATHENA_QUERY_ID: ${{ inputs.query-id }}
       ATHENA_QUERY_STRING: ${{ inputs.query-string }}
+    run: |
+      if [[ -n "${ATHENA_QUERY_ID}" ]]; then
+        ATHENA_QUERY_STRING=$(aws athena get-named-query \
+          --named-query-id "${ATHENA_QUERY_ID}" \
+          --query NamedQuery.QueryString \
+          --output text)
+      fi
+      echo "string<<EOF" >> $GITHUB_OUTPUT
+      echo "${ATHENA_QUERY_STRING}" >> $GITHUB_OUTPUT
+      echo "EOF" >> $GITHUB_OUTPUT
+
+  - name: Start Query Execution
+    id: execution
+    shell: bash
+    env:
+      ATHENA_QUERY_STRING: ${{ steps.query.outputs.string }}
       ATHENA_QUERY_CONTEXT: ${{ inputs.query-context }}
       ATHENA_OUTPUT_LOCATION: ${{ inputs.output-location }}
     run: |
@@ -44,7 +64,7 @@ runs:
   - name: Wait for Query Result
     shell: bash
     env:
-      ATHENA_QUERY_ID: ${{ steps.query.outputs.id }}
+      ATHENA_QUERY_ID: ${{ steps.execution.outputs.id }}
     run: |
       while true; do
         status=$(aws athena get-query-execution \
@@ -62,7 +82,7 @@ runs:
     id: result
     shell: bash
     env:
-      ATHENA_QUERY_ID: ${{ steps.query.outputs.id }}
+      ATHENA_QUERY_ID: ${{ steps.execution.outputs.id }}
     run: |
       aws athena get-query-execution \
         --query-execution-id ${ATHENA_QUERY_ID} \

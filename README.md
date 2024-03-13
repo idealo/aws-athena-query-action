@@ -19,7 +19,7 @@ steps:
   uses: idealo/aws-athena-query-action@v1
   with:
     query-context: Catalog=AwsDataCatalog,Database=myDatabase
-    query-string: >
+    query-string: |
       SELECT * FROM my_table
     output-location: s3://my-bucket/my-prefix
     output-filename: my-output.csv
@@ -32,11 +32,14 @@ See [action.yml](action.yml) for more detail.
 
 | Name              | Description                                                      | Required |
 | ----------------- | ---------------------------------------------------------------- | -------- |
-| `query-context`   | The context within which the query executes.                     | Yes      |
+| `query-id`        | The unique identifier of the saved query.                        | No       |
 | `query-string`    | The SQL query statements to be executed.                         | Yes      |
+| `query-context`   | The context within which the query executes.                     | Yes      |
 | `output-location` | The location in Amazon S3 where your query results are stored.   | Yes      |
 | `output-filename` | The desired name of the file where the query results are stored. | Yes      |
 | `output-min-size` | The minimum size of the output file in human-readable format.    | Yes      |
+
+If `query-id` is provided, the `query-string` will be overridden with the SQL statements from the saved query.
 
 ## Outputs
 
@@ -44,7 +47,7 @@ See [action.yml](action.yml) for more detail.
 
 | Name              | Description                                                    |
 | ----------------- | -------------------------------------------------------------- |
-| `query-id`        | The unique identifier for the query execution.                 |
+| `query-id`        | The unique identifier of the query execution.                  |
 | `output-location` | The location in Amazon S3 where your query results are stored. |
 
 ## License

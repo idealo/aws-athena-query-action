@@ -69,7 +69,8 @@ runs:
       while true; do
         status=$(aws athena get-query-execution \
           --query-execution-id ${ATHENA_QUERY_ID} \
-          --query QueryExecution.Status.State)
+          --query QueryExecution.Status.State \
+          --output text)
 
         case $status in
           QUEUED|RUNNING) sleep 10 ;;

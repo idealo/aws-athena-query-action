@@ -19,6 +19,12 @@ inputs:
   output-min-size:
     description: The minimum size of the output file in human-readable format, such as `1M` or `1G`.
     required: true
+  download-location:
+    description: The location on the runner machine where the query results are downloaded.
+    default: "."
+  download-filename:
+    description: The desired name of the file where the query results are downloaded.
+    default: ""
 outputs:
   query-id:
     description: The unique identifier of the query execution.
@@ -112,6 +118,7 @@ runs:
       echo bytes=$(numfmt --from=iec "${ATHENA_MINIMUM_SIZE}") >> $GITHUB_OUTPUT
 
   - name: Check Query Result Size
+    id: checksize
     if: ${{ steps.filesize.outputs.bytes < steps.minimum.outputs.bytes }}
     shell: bash
     env:
@@ -124,7 +131,6 @@ runs:
 
   - name: Move Query Result File
     id: move
-    if: ${{ success() }}
     shell: bash
     env:
       ATHENA_RESULT_LOCATION: ${{ steps.result.outputs.location }}
@@ -134,8 +140,19 @@ runs:
       echo "location=$(dirname ${ATHENA_RESULT_LOCATION})/${ATHENA_RESULT_FILENAME}" >> $GITHUB_OUTPUT
       aws s3 rm ${ATHENA_RESULT_LOCATION}.metadata
 
+  - name: Download Query Result File
+    if: ${{ inputs.download-filename != '' }}
+    shell: bash
+    env:
+      ATHENA_RESULT_LOCATION: ${{ steps.move.outputs.location }}
+      ATHENA_RUNNER_LOCATION: ${{ inputs.download-location }}
+      ATHENA_RUNNER_FILENAME: ${{ inputs.download-filename }}
+    run: |
+      mkdir -p ${ATHENA_RUNNER_LOCATION}
+      aws s3 cp ${ATHENA_RESULT_LOCATION} ${ATHENA_RUNNER_LOCATION}/${ATHENA_RUNNER_FILENAME}
+
   - name: Delete Query Result File
-    if: ${{ failure() }}
+    if: ${{ failure() && steps.checksize.conclusion == 'failure' }}
     shell: bash
     env:
       ATHENA_RESULT_LOCATION: ${{ steps.result.outputs.location }}

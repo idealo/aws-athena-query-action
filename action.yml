@@ -148,7 +148,7 @@ runs:
       ATHENA_RUNNER_LOCATION: ${{ inputs.download-location }}
       ATHENA_RUNNER_FILENAME: ${{ inputs.download-filename || inputs.output-filename }}
     run: |
-      mkdir -p "${ATHENA_RUNNER_LOCATION}""
+      mkdir -p "${ATHENA_RUNNER_LOCATION}"
       aws s3 cp ${ATHENA_RESULT_LOCATION} "${ATHENA_RUNNER_LOCATION}/${ATHENA_RUNNER_FILENAME}"
 
   - name: Delete Query Result File

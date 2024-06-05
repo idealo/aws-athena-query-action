@@ -21,7 +21,7 @@ inputs:
     required: true
   download-location:
     description: The location on the runner machine where the query results are downloaded.
-    default: "."
+    default: ""
   download-filename:
     description: The desired name of the file where the query results are downloaded.
     default: ""
@@ -141,15 +141,15 @@ runs:
       aws s3 rm ${ATHENA_RESULT_LOCATION}.metadata
 
   - name: Download Query Result File
-    if: ${{ inputs.download-filename != '' }}
+    if: ${{ inputs.download-location != '' }}
     shell: bash
     env:
       ATHENA_RESULT_LOCATION: ${{ steps.move.outputs.location }}
       ATHENA_RUNNER_LOCATION: ${{ inputs.download-location }}
-      ATHENA_RUNNER_FILENAME: ${{ inputs.download-filename }}
+      ATHENA_RUNNER_FILENAME: ${{ inputs.download-filename || inputs.output-filename }}
     run: |
-      mkdir -p ${ATHENA_RUNNER_LOCATION}
-      aws s3 cp ${ATHENA_RESULT_LOCATION} ${ATHENA_RUNNER_LOCATION}/${ATHENA_RUNNER_FILENAME}
+      mkdir -p "${ATHENA_RUNNER_LOCATION}""
+      aws s3 cp ${ATHENA_RESULT_LOCATION} "${ATHENA_RUNNER_LOCATION}/${ATHENA_RUNNER_FILENAME}"
 
   - name: Delete Query Result File
     if: ${{ failure() && steps.checksize.conclusion == 'failure' }}

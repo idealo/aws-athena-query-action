@@ -31,11 +31,12 @@ steps:
 See [action.yml](action.yml) for more detail.
 
 | Name                | Description                                                                | Required |
-| ------------------- | -------------------------------------------------------------------------- | -------- |
+|---------------------|----------------------------------------------------------------------------| -------- |
 | `query-id`          | The unique identifier of the saved query.                                  | No       |
 | `query-string`      | The SQL query statements to be executed.                                   | Yes      |
 | `query-context`     | The context within which the query executes.                               | Yes      |
 | `output-location`   | The location in Amazon S3 where your query results are stored.             | Yes      |
+| `query-workgroup`   | The desired workgroup. default="default".                                  | No       |
 | `output-filename`   | The desired name of the file where the query results are stored.           | Yes      |
 | `output-min-size`   | The minimum size of the output file in human-readable format.              | Yes      |
 | `download-location` | The location on the runner machine where the query results are downloaded. | No       |

@@ -10,6 +10,10 @@ inputs:
   query-context:
     description: The context within which the query executes.
     required: true
+  query-workgroup:
+    description: The workgroup to use for the query
+    required: false
+    default: "default"
   output-location:
     description: The location in Amazon S3 where your query results are stored, such as `s3://mybucket/myprefix`.
     required: true
@@ -59,8 +63,10 @@ runs:
       ATHENA_QUERY_STRING: ${{ steps.query.outputs.string }}
       ATHENA_QUERY_CONTEXT: ${{ inputs.query-context }}
       ATHENA_OUTPUT_LOCATION: ${{ inputs.output-location }}
+      ATHENA_QUERY_WORKGROUP: ${{ inputs.query-workgroup }}
     run: |
       aws athena start-query-execution \
+        --work-group "${ATHENA_QUERY_WORKGROUP} \
         --query-execution-context "${ATHENA_QUERY_CONTEXT}" \
         --query-string "${ATHENA_QUERY_STRING}" \
         --result-configuration "OutputLocation=${ATHENA_OUTPUT_LOCATION}" \

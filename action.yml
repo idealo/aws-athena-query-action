@@ -13,7 +13,7 @@ inputs:
   query-workgroup:
     description: The workgroup to use for the query
     required: false
-    default: "default"
+    default: "primary"
   output-location:
     description: The location in Amazon S3 where your query results are stored, such as `s3://mybucket/myprefix`.
     required: true

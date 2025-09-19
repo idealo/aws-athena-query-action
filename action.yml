@@ -125,7 +125,7 @@ runs:
 
   - name: Check Query Result Size
     id: checksize
-    if: ${{ steps.filesize.outputs.bytes < steps.minimum.outputs.bytes }}
+    if: ${{ fromJson(steps.filesize.outputs.bytes) < fromJson(steps.minimum.outputs.bytes) }}
     shell: bash
     env:
       ATHENA_FILESIZE_BYTES: ${{ steps.filesize.outputs.bytes }}

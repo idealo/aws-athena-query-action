@@ -3,9 +3,11 @@ description: A GitHub Action to run an Athena query
 inputs:
   query-id:
     description: The unique identifier of the saved query. Use `aws athena list-named-queries` to get query IDs.
+    required: false
     default: ""
   query-string:
     description: The SQL query statements to be executed.
+    required: false
     default: ""
   query-context:
     description: The context within which the query executes.
@@ -22,12 +24,15 @@ inputs:
     required: true
   output-min-size:
     description: The minimum size of the output file in human-readable format, such as `1M` or `1G`.
-    required: true
+    required: false
+    default: ""
   download-location:
     description: The location on the runner machine where the query results are downloaded.
+    required: false
     default: ""
   download-filename:
     description: The desired name of the file where the query results are downloaded.
+    required: false
     default: ""
 outputs:
   query-id:
@@ -115,25 +120,20 @@ runs:
         --query ContentLength \
         --output text | echo "bytes=$(cat)" >> $GITHUB_OUTPUT
 
-  - name: Convert Size to Bytes
-    id: minimum
-    shell: bash
-    env:
-      ATHENA_MINIMUM_SIZE: ${{ inputs.output-min-size }}
-    run: |
-      echo bytes=$(numfmt --from=iec "${ATHENA_MINIMUM_SIZE}") >> $GITHUB_OUTPUT
-
   - name: Check Query Result Size
     id: checksize
-    if: ${{ fromJson(steps.filesize.outputs.bytes) < fromJson(steps.minimum.outputs.bytes) }}
+    if: ${{ inputs.output-min-size != '' }}
     shell: bash
     env:
       ATHENA_FILESIZE_BYTES: ${{ steps.filesize.outputs.bytes }}
-      ATHENA_MINIMUM_BYTES: ${{ steps.minimum.outputs.bytes }}
+      ATHENA_MINIMUM_SIZE: ${{ inputs.output-min-size }}
     run: |
-      echo "Result file size is smaller than expected: " \
-        $(numfmt --to=iec ${ATHENA_FILESIZE_BYTES}) "<" $(numfmt --to=iec ${ATHENA_MINIMUM_BYTES})
-      exit 1
+      min_bytes=$(numfmt --from=iec "${ATHENA_MINIMUM_SIZE}")
+      if [[ ${ATHENA_FILESIZE_BYTES} -lt ${min_bytes} ]]; then
+        printf "Result file size %s is smaller than the minimum required size of %s.\n" \
+          $(numfmt --to=iec ${ATHENA_FILESIZE_BYTES}) ${ATHENA_MINIMUM_SIZE} >&2
+        exit 1
+      fi
 
   - name: Move Query Result File
     id: move
